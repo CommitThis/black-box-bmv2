@@ -42,26 +42,26 @@ available to BMv2.
 
 ```python
 config = {
-'switch_name': 'example',
-'network_name': 'example_net',
-'defaults': {
-    'disable_ipv6': True,
-    'mtu': 9500,
-    'state': 'up'
+    'switch_name': 'example',
+    'network_name': 'example_net',
+    'defaults': {
+        'disable_ipv6': True,
+        'mtu': 9500,
+        'state': 'up'
     },
     'pairs' : [{
-    'host': {
-	'name': 'h1eth0',
-	'ip': '10.0.0.1',
+        'host': {
+            'name': 'h1eth0',
+            'ip': '10.0.0.1',
+        },
+        'peer' : {
+            'name': 'Ethernet0',
+            'mac': '84:C7:8F:00:00:01',
+            'ip': '10.0.2.1'
+        }
     },
-    'peer' : {
-	'name': 'Ethernet0',
-	'mac': '84:C7:8F:00:00:01',
-	'ip': '10.0.2.1'
-    }
-    },
-...
-    }
+    ...
+}
 ```
 
 The top level contains basic switch information, and a key for defaults that are
