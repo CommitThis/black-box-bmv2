@@ -1,6 +1,6 @@
 # Behavioral Model Docker
 
-Library and DOckerfile for building and running the Behavioral Model using
+Library and Dockerfile for building and running the Behavioral Model using
 Python.
 
 > **Note:** The docker image, because it is used for both running BMv2, and used
@@ -18,9 +18,11 @@ Build the docker container. The library requires it specifically be named/tagged
 
 ## Compiling P4 Programs
 
-    from simple_switch.compile import compile_p4
+```python
+from simple_switch.compile import compile_p4
 
-    compiled, p4info = compile_p4(dir_path, 'mac_learning.p4')
+compiled, p4info = compile_p4(dir_path, 'mac_learning.p4')
+```
 
 The compiled program and P4 runtime files will be placed in a directory names
 `out`, relative to the location of the supplied source code.
@@ -38,27 +40,29 @@ available to BMv2.
 
 > Network name is not currently used.
 
-    config = {
-        'switch_name': 'example',
-        'network_name': 'example_net',
-        'defaults': {
-            'disable_ipv6': True,
-            'mtu': 9500,
-            'state': 'up'
-	    },
-	    'pairs' : [{
-            'host': {
-                'name': 'h1eth0',
-                'ip': '10.0.0.1',
-            },
-            'peer' : {
-                'name': 'Ethernet0',
-                'mac': '84:C7:8F:00:00:01',
-                'ip': '10.0.2.1'
-            }
-	    },
-        ...
+```python
+config = {
+'switch_name': 'example',
+'network_name': 'example_net',
+'defaults': {
+    'disable_ipv6': True,
+    'mtu': 9500,
+    'state': 'up'
+    },
+    'pairs' : [{
+    'host': {
+	'name': 'h1eth0',
+	'ip': '10.0.0.1',
+    },
+    'peer' : {
+	'name': 'Ethernet0',
+	'mac': '84:C7:8F:00:00:01',
+	'ip': '10.0.2.1'
     }
+    },
+...
+    }
+```
 
 The top level contains basic switch information, and a key for defaults that are
 to be applied to the ports.
@@ -78,38 +82,39 @@ The available keys are:
 
 ### Running with Python
 
+```python
+from threading import Event
+from threading import Thread
 
-    from threading import Event
-    from threading import Thread
-
-    from simple_switch.simple_switch_runner import make_switch
-    from veth_config import config
+from simple_switch.simple_switch_runner import make_switch
+from veth_config import config
 
 
-    # Network name is not currently used
-    bmv2 = make_switch(config, SWITCH_NAME, NETWORK_NAME, GRPC_PORT)
-    bmv2.launch()
+# Network name is not currently used
+bmv2 = make_switch(config, SWITCH_NAME, NETWORK_NAME, GRPC_PORT)
+bmv2.launch()
 
-    shutdown_event = Event()
-    continue_event = Event()
+shutdown_event = Event()
+continue_event = Event()
 
-    def wait_start_and_log_stream():
-        ''' Start reading the logs and trigger an event when the switch
-        application has started the thrift server to test for readiness.
-        While not perfect as it isn't testing the gRPC interface, it is a
-        good (read: only) proxy for doing so.'''
-        for line in bmv2.stream():
-            line = line.decode('utf-8').strip()
-            if 'Thrift server was started' in line:
-                continue_event.set()
-            print(line)
+def wait_start_and_log_stream():
+''' Start reading the logs and trigger an event when the switch
+application has started the thrift server to test for readiness.
+While not perfect as it isn't testing the gRPC interface, it is a
+good (read: only) proxy for doing so.'''
+for line in bmv2.stream():
+    line = line.decode('utf-8').strip()
+    if 'Thrift server was started' in line:
+	continue_event.set()
+    print(line)
 
-    logs = Thread(target=wait_start_and_log_stream)
-    logs.start()
-    continue_event.wait()
+logs = Thread(target=wait_start_and_log_stream)
+logs.start()
+continue_event.wait()
 
-    # Later ....
-    bmv2.kill()
+# Later ....
+bmv2.kill()
+```
 
 ### Technical Detail
 
