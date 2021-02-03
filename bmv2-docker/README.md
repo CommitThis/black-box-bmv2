@@ -89,6 +89,9 @@ from threading import Thread
 from simple_switch.simple_switch_runner import make_switch
 from veth_config import config
 
+SWITCH_NAME = "ExampleSwitch"
+NETWORK_NAME = "ExampleNet"
+GRPC_PORT = 9559 # Optional, default 9559
 
 # Network name is not currently used
 bmv2 = make_switch(config, SWITCH_NAME, NETWORK_NAME, GRPC_PORT)
@@ -98,15 +101,16 @@ shutdown_event = Event()
 continue_event = Event()
 
 def wait_start_and_log_stream():
-''' Start reading the logs and trigger an event when the switch
-application has started the thrift server to test for readiness.
-While not perfect as it isn't testing the gRPC interface, it is a
-good (read: only) proxy for doing so.'''
-for line in bmv2.stream():
-    line = line.decode('utf-8').strip()
-    if 'Thrift server was started' in line:
-	continue_event.set()
-    print(line)
+    ''' Start reading the logs and trigger an event when the switch
+    application has started the thrift server to test for readiness.
+    While not perfect as it isn't testing the gRPC interface, it is a
+    good (read: only) proxy for doing so.'''
+    for line in bmv2.stream():
+        line = line.decode('utf-8').strip()
+        if 'Thrift server was started' in line:
+            continue_event.set()
+        print(line)
+
 
 logs = Thread(target=wait_start_and_log_stream)
 logs.start()

@@ -48,6 +48,8 @@ import signal
 
 NETNS_DIR = '/var/run/netns'
 
+BMV_DEFAULT_GRPC_PORT = 9559
+
 if os.environ.get('https_proxy'):
     del os.environ['https_proxy']
 if os.environ.get('http_proxy'):
@@ -165,7 +167,7 @@ class SimpleSwitchDocker:
 
 
 
-def make_switch(config, switch_name, network_name, grpc_port):
+def make_switch(config, switch_name, network_name, grpc_port=BMV_DEFAULT_GRPC_PORT):
     peer_ports = {}
     defaults = config.get('defaults', {})
     for idx, veth_config in enumerate(config.get('pairs', {})):
