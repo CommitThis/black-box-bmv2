@@ -38,7 +38,6 @@ available to BMv2.
 
 > Network name is not currently used.
 
-The format of the file contains basic 
     config = {
         'switch_name': 'example',
         'network_name': 'example_net',
@@ -60,6 +59,20 @@ The format of the file contains basic
 	    },
         ...
     }
+
+The top level contains basic switch information, and a key for defaults that are
+to be applied to the ports.
+
+For each virtual ethernet port, there is a host interface and a peer interface.
+
+The available keys are:
+* 'name': Interface name
+* 'ip': IPv4 adddress
+* 'mac': MAC address
+* 'mtu': Maximum Transmission Unit
+* 'diable_ipv6': Disable IPv6. This may not work on peer interfaces
+* 'disable_multicast': Attempts to block SSDP, mDNS, etc.
+
 
 
 
