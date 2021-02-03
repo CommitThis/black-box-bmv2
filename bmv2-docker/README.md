@@ -125,18 +125,22 @@ than using a virtual machine or a native device because:
 
 The process is as follows:
 1. Create virtual ethernet port pairs;
-2. Launch the container. The container is run in the first instance using the
+2. Port pairs are recorded and written to a file used by the simple switch to
+   bind to;
+3. Launch the container. The container is run in the first instance using the
    `wait.sh` script. This serves as a proxy for whatever executable that is to
    be run. It traps and waits for the SIGUSR1 signal. Once this is received the
    script will execute the contents of a file (it's called ports, but in
    practice) could be any command. It also traps SIGINT and SIGTERM to kill the
-   executed process.
-3. The network namespace is made available to the host by linking the 
+   executed process. The launch also binds the file created earlier to expose
+   ports to the container.
+4. The network namespace is made available to the host by linking the 
    container's PID in `/var/run/netns/${namespace}` where the namespace is the
    name of the container + `_ns`.
-4. The peer interface of the veth pairs are moved to the containers namespace;
-5. The peer interfaces are configured. When a interface moves namespaces, it
+5. The peer interface of the veth pairs are moved to the containers namespace;
+6. The peer interfaces are configured. When a interface moves namespaces, it
    appears to lose it's settings, so they must be applied again (or once here).
+7. BMv2 is launched, using the ports file we generated at the begining.
 
 
 > **Note:** I can't guarantee that the port pairs will be free of traffic. 
