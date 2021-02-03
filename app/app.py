@@ -9,10 +9,6 @@ from scapy.all import Ether, ICMP, IP, get_if_hwaddr, sendp
 
 from simple_switch.simple_switch_runner import SimpleSwitchDocker
 from simple_switch.simple_switch_runner import make_switch
-from simple_switch.netutils import create_bridge
-from simple_switch.netutils import add_veth_pair
-from simple_switch.netutils import delete_device
-from simple_switch.netutils import configure_interface
 from simple_switch.compile import compile_p4
 
 from p4client.p4grpc import P4RuntimeGRPC
