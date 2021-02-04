@@ -7,7 +7,7 @@ class TimedOut:
 
 
 
-class PacketTest:
+class Predicate:
 	def on_packet(self, pkt):
 		pass
 
@@ -21,7 +21,7 @@ class PacketTest:
 It is quicker to find something than not find something!
 '''
 
-class received_packet(PacketTest):
+class received_packet(Predicate):
 	''' Will only get called if a packet is received '''
 	def stop_condition(self, pkt):
 		return True
@@ -31,7 +31,7 @@ class received_packet(PacketTest):
 
 
 
-class timed_out(PacketTest):
+class timed_out(Predicate):
 	def stop_condition(self, pkt):
 		return True
 
@@ -40,7 +40,7 @@ class timed_out(PacketTest):
 
 
 
-class saw_src_mac(PacketTest):
+class saw_src_mac(Predicate):
 	def __init__(self, mac):
 		self._mac = mac
 
@@ -54,7 +54,7 @@ class saw_src_mac(PacketTest):
 
 
 
-class did_not_see_src_mac(PacketTest):
+class did_not_see_src_mac(Predicate):
 	def __init__(self, mac):
 		super().__init__()
 		self._mac = mac
@@ -69,7 +69,7 @@ class did_not_see_src_mac(PacketTest):
 
 
 
-class saw_dst_mac(PacketTest):
+class saw_dst_mac(Predicate):
 	def __init__(self, mac):
 		self._mac = mac
 
@@ -83,7 +83,7 @@ class saw_dst_mac(PacketTest):
 
 
 
-class did_not_see_dst_mac(PacketTest):
+class did_not_see_dst_mac(Predicate):
 	def __init__(self, mac):
 		super().__init__()
 		self._mac = mac
@@ -98,7 +98,7 @@ class did_not_see_dst_mac(PacketTest):
 
 
 
-class saw_vlan_tag(PacketTest):
+class saw_vlan_tag(Predicate):
 	def __init__(self, tag):
 		self._tag = tag
 
@@ -110,7 +110,7 @@ class saw_vlan_tag(PacketTest):
 
 
 
-class did_not_see_vlan(PacketTest):
+class did_not_see_vlan(Predicate):
 
 	def stop_condition(self, pkt):
 		return pkt.haslayer(Dot1Q)
@@ -120,7 +120,7 @@ class did_not_see_vlan(PacketTest):
 
 
 
-class saw_packet_equals_sent(PacketTest):
+class saw_packet_equals_sent(Predicate):
 	def __init__(self, pkt):
 		super().__init__()
         # Reload packet to generate CRC
@@ -135,7 +135,7 @@ class saw_packet_equals_sent(PacketTest):
 		return not timed_out
 
 
-class did_not_see_packet_equals_sent(PacketTest):
+class did_not_see_packet_equals_sent(Predicate):
 	def __init__(self, pkt):
 		super().__init__()
 		tmp = pkt.__class__(bytes(pkt))
@@ -155,7 +155,7 @@ class did_not_see_packet_equals_sent(PacketTest):
 
 
 
-class packet_count_was(PacketTest):
+class packet_count_was(Predicate):
 
 	def __init__(self, count):
 		self._expected_count = count
@@ -169,7 +169,7 @@ class packet_count_was(PacketTest):
 		
 
 
-class packet_count(PacketTest):
+class packet_count(Predicate):
 
 	def __init__(self):
 		self._received_count = 0
