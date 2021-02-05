@@ -8,5 +8,3 @@ RUN ./p4-guide/bin/install-p4dev-v3.sh
 
 RUN apt-get clean
 COPY ./wait.sh /opt/wait.sh
-
-EXPOSE 50051
