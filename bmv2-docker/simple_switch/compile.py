@@ -15,14 +15,11 @@ def compile_p4(source_dir, main):
     p4info = os.path.join(out_dir, f'{name}.p4info.txt')
 
     if os.path.exists(tmp_dir):
-        print(f'deleting {tmp_dir}')
         rmtree(tmp_dir)
     
     copytree(source_dir, tmp_dir)
     compile_command = f'p4c {main} -o {out_dir} -I{tmp_dir} --p4runtime-files={p4info}'.split()
-    print(compile_command)
     client = DockerClient(base_url="unix://var/run/docker.sock", version='auto')
-    x = None
 
     container = client.containers.run(
         SimpleSwitchDocker.CONTAINER,
@@ -35,14 +32,15 @@ def compile_p4(source_dir, main):
     status = container.wait()
 
     logs = []
-    print()
     for line in container.logs(stream=True):
-        line = line.decode('utf-8').replace('\n', '')
-        print(line)
-    print()
+        logs.append(line.decode('utf-8').replace('\n', ''))
     container.remove()
 
-    if status != 0:
+    if status['StatusCode'] != 0:
+        print()
+        for log in logs:
+            print(log)
+        print()
         raise Exception('Error running compile')
 
     result_dir = os.path.join(source_dir, 'out')
