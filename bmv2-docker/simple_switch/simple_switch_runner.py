@@ -75,7 +75,7 @@ class SimpleSwitchDocker:
         self._docker_api = DockerAPIClient(base_url="unix://var/run/docker.sock", version='auto')
 
 
-    def launch(self):
+    def launch(self, log_level='info'):
         # self._create_network()
 
         # network_exists = True
@@ -87,7 +87,7 @@ class SimpleSwitchDocker:
 
         port_file = f'/tmp/ports_{self._name}'
         with open(port_file, 'w+') as ports_file:
-            command = 'simple_switch_grpc --log-level=trace --log-console --no-p4 '
+            command = f'simple_switch_grpc --log-level={log_level} --log-console --no-p4 '
             command += ' '.join([f'-i {idx}@{peer}' for idx, peer in enumerate(self._switch_ports)])
             ports_file.write(command)
 
