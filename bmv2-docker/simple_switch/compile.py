@@ -14,10 +14,16 @@ def compile_p4(source_dir, main):
     out_dir = tmp_dir + '/out'
     p4info = os.path.join(out_dir, f'{name}.p4info.txt')
 
+    print(f'source_dir: {source_dir}')
+    print(f'tmp_dir:    {tmp_dir}')
+    print(f'out_dir:    {out_dir}')
+    print(f'p4info:     {p4info}')   
+
     if os.path.exists(tmp_dir):
         rmtree(tmp_dir)
     
     copytree(source_dir, tmp_dir)
+    os.makedirs(out_dir, exist_ok=True)
     compile_command = f'p4c {main} -o {out_dir} -I{tmp_dir} --p4runtime-files={p4info}'.split()
     client = DockerClient(base_url="unix://var/run/docker.sock", version='auto')
 
