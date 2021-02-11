@@ -1,19 +1,15 @@
+from concurrent.futures import wait
+
 class SniffFuture:
-	def __init__(self, sniffer, monitor_lock, future):
-		self._future = future
-		self._sniffer = sniffer
-		self._monitor_lock = monitor_lock
-		self._result = None
-	
-	def result(self):
-		if self._result == None:
-			self._result = self._future.result()
-		return self._result
+    def __init__(self, sniffer, future):
+        self._future = future
 
-	def notify(self):
-		with self._monitor_lock:
-			self._sniffer.stop()
+    def result(self):
+        exception = self._future.exception()
+        if exception is not None:
+            raise exception
+        return self._future.result()
 
-	def __repr__(self):
-		if self._future.done():
-			return f'SniffFuture(done={self._future.done()}, result={self._result})'
+    def __repr__(self):
+        if self._future.done():
+            return f'SniffFuture(done={self._future.done()}, result={self._result})'

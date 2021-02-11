@@ -91,19 +91,17 @@ class TestContext:
 
 
     def stop(self):
-        print('Stopping monitors')
         with self._monitor_lock:
             for monitor in self._monitors:
                 if monitor.running:
                     monitor.stop()
             for monitor in self._monitors:
                 monitor.join()
-        print('Monitors stopped')
 
     
     def expect(self, 
             iface: str,
-            expect_function: Predicate,
+            predicate: Predicate,
             timeout: float=DEFAULT_TIMEOUT,
             count: int=0):
         '''Sniff for packets based on match predicate
@@ -136,7 +134,7 @@ class TestContext:
 
         Args:
             iface (str): Network interface to monitor
-            expect_function (Predicate): Function to apply against matching
+            predicate (Predicate): Function to apply against matching
                 packet
             timeout (float): Period of time to monitor for packets.
             count (int): Number of packets to capture. 0 is infinity
@@ -151,12 +149,17 @@ class TestContext:
         # result = default_result
         ready_event = Event()
         timed_out = True
-
-        if isinstance(expect_function, type):
-            expect_function = expect_function()
+        error = None
 
 
-        def wrapped_stop_condition(pkt):
+        ''' For convenience, If predicate is class name because it takes no
+            arguments, instantiate it. '''
+        if isinstance(predicate, type):
+            predicate = predicate()
+
+
+
+        def stop_condition(pkt):
             ''' Wrapper for stop condition.
             
             This is wrapped so that if the the condition indicates
@@ -164,11 +167,32 @@ class TestContext:
             by default, it is `True`.
             '''
             # nonlocal result, expect, timed_out
-            nonlocal expect_function, timed_out
-            should_stop: bool = expect_function.stop_condition(pkt) 
-            if should_stop == True:
-                timed_out = False
+            nonlocal predicate, timed_out, error
+            try:
+                should_stop: bool = predicate.stop_condition(pkt) 
+                if should_stop == True:
+                    timed_out = False
+            except Exception as e:
+                error = e
+                sniffer.stop(join=False)
+
             return should_stop
+
+
+        def on_packet(pkt):
+            ''' Wrap `on_packet` function to capture any exceptions raised by
+                the function and henceforth stop the sniffer.
+                Referencing a nonlocal in a function defined before said
+                nonlocal has been created makes me nervous... '''
+            nonlocal predicate, error, sniffer
+            try:
+                predicate.on_packet(pkt)
+            except Exception as e:
+                error = e
+                ''' Joining here raises an exception, probably because it is
+                    an attempt to join within the thread to be joined. It seems
+                    to work well enough without doing so'''
+                sniffer.stop(join=False)
 
 
         def notify_started():
@@ -179,14 +203,19 @@ class TestContext:
 
         sniffer = AsyncSniffer(iface=iface, 
             count=count,
-            stop_filter=wrapped_stop_condition,
+            stop_filter=stop_condition,
             timeout=timeout,
-            prn=expect_function.on_packet,
+            store=False,
+            prn=on_packet,
             started_callback=notify_started)
 
 
         ''' Need the sniffer to start immediately '''
         sniffer.start()
+
+        ''' Wait until sniffer has actually started '''
+        if not ready_event.wait(timeout=5):
+            raise Exception('Sniffer did not start!')
 
 
         def join():
@@ -194,23 +223,19 @@ class TestContext:
             sniffer has finished, or until it's timeout has been reached.
             returns result which will be available through the future
             returned by the thread executor. '''
-            nonlocal sniffer, timed_out, expect_function
+            nonlocal sniffer, timed_out, predicate, error
+
             sniffer.join()
-            result = expect_function.on_finish(timed_out)
+            if error != None:
+                raise error
+            result = predicate.on_finish(timed_out)
             return result
 
-
-        ''' Wait until sniffer has actually started '''
-        if not ready_event.wait(timeout=5):
-            raise Exception('Sniffer did not start!')
 
         with self._monitor_lock:
             self._monitors.append(sniffer)
 
-        return SniffFuture(
-            sniffer, 
-            self._monitor_lock, 
-            self._executor.submit(join))
+        return SniffFuture(sniffer, self._executor.submit(join))
 
 
 
