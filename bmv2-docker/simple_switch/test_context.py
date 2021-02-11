@@ -19,7 +19,8 @@ merged_config = {
 
 
 
-def make_bmv_context(config, compiled, p4info, control_function=None, configure=None):
+def make_bmv_context(config, compiled, p4info, control_function=None,
+        configure=None, log_level='info'):
     merged_config.update(config)
 
     @pytest.fixture(scope='module')
@@ -29,7 +30,7 @@ def make_bmv_context(config, compiled, p4info, control_function=None, configure=
             merged_config.get('network_name'),
             merged_config.get('grpc_port'))
 
-        bmv2.launch()
+        bmv2.launch(log_level=log_level)
 
         continue_event = Event()
         shutdown_event = Event()
@@ -59,14 +60,23 @@ def make_bmv_context(config, compiled, p4info, control_function=None, configure=
             election_low=merged_config.get('election_low')
         )
 
+        controller.master_arbitration_update()
+        info_data = open(p4info, 'rb').read()
+        bin_data = open(compiled, 'rb').read()
+        controller._set_info(info_data)
+        controller.configure_forwarding_pipeline(bin_data)
+
+
         if configure is not None:
-            configure(controller, compiled, p4info)
+            configure(controller)
 
         if control_function is not None:
             controller_thread = Thread(target=control_function, args=[
                     controller,
                     shutdown_event])
             controller_thread.start()
+
+        time.sleep(1)
 
         yield TestContext()
 
