@@ -149,8 +149,9 @@ class SimpleSwitchDocker:
             self._container.remove()
         except:
             pass
-        print(f'Removing namesapce {self._namespace}')
+        print(f'Removing namespace {self._namespace}')
         netns.remove(self._namespace)
+        
 
 
     def stream(self):
