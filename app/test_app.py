@@ -30,7 +30,7 @@ GRPC_PORT = 9559
 
 
 
-def configure_switch(controller, compiled, p4info):
+def configure_switch(controller):
     controller.master_arbitration_update()
     time.sleep(1)
 
@@ -43,13 +43,10 @@ def configure_switch(controller, compiled, p4info):
     controller.write_multicast(
         group_id=100,
         replicas=[
+            {'egress_port': 0, 'instance': 42},
             {'egress_port': 1, 'instance': 42},
             {'egress_port': 2, 'instance': 42},
             {'egress_port': 3, 'instance': 42},
-            {'egress_port': 4, 'instance': 42},
-            {'egress_port': 5, 'instance': 42},
-            {'egress_port': 6, 'instance': 42},
-            {'egress_port': 7, 'instance': 42}
         ])
     controller.write_table(
         table_name='MyIngress.dmac_table',
@@ -120,7 +117,8 @@ def test_received_packet(context):
     result2 = context.expect('h3eth0', saw_packet_equals_sent(pkt))
     result3 = context.expect('h4eth0', saw_packet_equals_sent(pkt))
 
-    sendp(pkt, iface='h1eth0')
+    sendp(pkt, iface='h2eth0')
+
     assert(result1.result() == True)
     print("received 1!")
     assert(result2.result() == True)
@@ -128,4 +126,26 @@ def test_received_packet(context):
     assert(result3.result() == True)
     print("received 3!")
 
-    return True
+def test_received_packet2(context):
+    print('\n\n\n')
+    # time.sleep(10)
+    pkt = Ether(src=get_if_hwaddr('h1eth0'), dst='ff:ff:ff:ff:ff:ff')/IP(
+            src='10.0.0.2',
+            dst='255.255.255.255')/ICMP(type=8, code=0)/b'from h1h1eth0'
+
+    result1a = context.expect('h2eth0', saw_packet_equals_sent(pkt))
+    result2a = context.expect('h2h1eth0', saw_packet_equals_sent(pkt))
+    result3a = context.expect('h4h1eth0', saw_packet_equals_sent(pkt))
+
+    sendp(pkt, iface='h1eth0')
+    assert(result1a.result() == True)
+    print("received 1!")
+    assert(result2a.result() == True)
+    print("received 2!")
+    assert(result3a.result() == True)
+    print("received 3!")
+
+
+
+
+

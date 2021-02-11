@@ -57,8 +57,6 @@ def configure_switch(controller, compiled, p4info):
     group, and giving layer 2 broadcast behaviour.
     '''
     controller.master_arbitration_update()
-    time.sleep(1)
-
     info_data = open(p4info, 'rb').read()
     bin_data = open(compiled, 'rb').read()
     controller._set_info(info_data)
@@ -68,13 +66,10 @@ def configure_switch(controller, compiled, p4info):
     controller.write_multicast(
         group_id=100,
         replicas=[
+            {'egress_port': 0, 'instance': 42},
             {'egress_port': 1, 'instance': 42},
             {'egress_port': 2, 'instance': 42},
             {'egress_port': 3, 'instance': 42},
-            {'egress_port': 4, 'instance': 42},
-            {'egress_port': 5, 'instance': 42},
-            {'egress_port': 6, 'instance': 42},
-            {'egress_port': 7, 'instance': 42}
         ])
     controller.write_table(
         table_name='MyIngress.dmac_table',
