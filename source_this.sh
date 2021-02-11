@@ -1,5 +1,8 @@
 #! /bin/bash
 
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+
 # Create virtual environment, making copies of the python executables so that
 # when the capabilities are set, firstly it actually works (you can't set
 # against links), and if it did, we wouldn't want to modify system binaries
@@ -14,7 +17,8 @@ sudo setcap CAP_NET_RAW,CAP_DAC_OVERRIDE+eip .venv/bin/pytest
 source .venv/bin/activate
 pip install --upgrade setuptools
 pip install wheel
-pip install -e packettest
-pip install -e bmv2-docker
-pip install -e simplep4client
+pip install -e ${SCRIPTPATH}/packettest
+pip install -e ${SCRIPTPATH}/bmv2-docker
+pip install -e ${SCRIPTPATH}/simplep4client
 
+sudo setcap CAP_NET_RAW,CAP_DAC_OVERRIDE+eip .venv/bin/run_bmv2
