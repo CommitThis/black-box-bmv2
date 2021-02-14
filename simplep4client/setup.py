@@ -23,5 +23,8 @@ setup(
         'protobuf',
         'scapy',
         'ipaddress'
+    ],
+    scripts=[
+        'bin/run_bmv2'
     ]
 )

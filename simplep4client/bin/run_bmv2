@@ -1,0 +1,78 @@
+#! /usr/bin/env python3
+
+import argparse
+import signal
+
+from threading import Thread
+
+from simple_switch.simple_switch_runner import make_switch
+
+DEFAULT_CONFIG = {
+    'switch_name': 'ptp_switch',
+    'network_name': 'ptp_net',
+    'device_id': 0,
+    'election_high': 0,
+    'election_low': 1,
+	'defaults': {
+		'disable_ipv6': True,
+		'mtu': 9500,
+		'state': 'up'
+	},
+	'pairs' : [
+        {
+            'host': { 'name': 'h1eth0' },
+            'peer' : { 'name': 'Ethernet0' }
+        },
+        {
+            'host': { 'name': 'h2eth0' },
+            'peer' : { 'name': 'Ethernet1' }
+        },
+        {
+            'host': { 'name': 'h3eth0' },
+            'peer' : { 'name': 'Ethernet2' }
+        },
+        {
+            'host': { 'name': 'h4eth0',
+            },
+            'peer' : { 'name': 'Ethernet3' }
+	    }
+    ]
+}
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', help='name of container instance', type=str)
+    parser.add_argument('--grpc-port', default=9559, type=int)
+    parser.add_argument('--log-level', default='info', type=str)
+    parser.add_argument('--network', default=None, type=str)
+    parser.add_argument('--config', default=DEFAULT_CONFIG, type=str)
+    args = parser.parse_args()
+
+    # shutdown_event = Event()
+
+    network = args.network
+    if network is None:
+        network = f'{args.name}_net'
+
+    config = DEFAULT_CONFIG
+    if args.config is None:
+        config = open(args.config).read()
+
+    switch_instance = make_switch(config, args.name, network)
+    switch_instance.launch(args.log_level)
+
+    def log_stream():
+        for line in switch_instance.stream():
+            line = line.decode('utf-8').strip()
+            print(line)
+
+    log_thread = Thread(target=log_stream)
+    log_thread.start()
+
+    def signal_handler(signal, frame):
+        switch_instance.kill()
+        log_stream.join()
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    
