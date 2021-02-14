@@ -53,6 +53,11 @@ def get_pb2_update(update_type):
     }[update_type]
 
 
+def seconds(value):
+    return int(value * 1000000000)
+
+
+
 class P4RuntimeGRPC(object):
 
     def __init__(self, host, device_id, election_high, election_low):
@@ -64,7 +69,7 @@ class P4RuntimeGRPC(object):
         self._election_low = election_low
         self._status = None
         self.start()
-        
+
 
     def start(self):
         self._status = WorkerStatus.STARTING
@@ -72,6 +77,7 @@ class P4RuntimeGRPC(object):
         self._channel = grpc.insecure_channel(self._host, options=(('grpc.enable_http_proxy', 0),))
         self._client = p4runtime_pb2_grpc.P4RuntimeStub(self._channel)
         self._setup_stream()
+
 
     def status(self):
         return {
@@ -81,7 +87,7 @@ class P4RuntimeGRPC(object):
             'election_high': self._election_high,
             'election_low': self._election_low
         }
-        
+
 
     def _set_info(self, p4info_data):
         print('set info')
@@ -102,20 +108,7 @@ class P4RuntimeGRPC(object):
                 p = self._stream_out_q.get()
                 if p is None:
                     break
-                
-                print(f'yield {p}')
                 yield p
-
-        # def stream_recv(self, stream):
-        #     ''' Since the stream channel in itself is iterable, this loops
-        #     over the responses and inserts them into the input queue'''
-        #     try:
-        #         for p in stream:
-        #             self.handle_stream_response(p)
-        #     except grpc.RpcError as e:
-        #         if grpc.StatusCode.CANCELLED == e.code():
-        #             print 'Cancelled'
-        #             pass
 
         def stream_recv(stream):
             self._status = WorkerStatus.RUNNING
@@ -156,7 +149,6 @@ class P4RuntimeGRPC(object):
         try:
             message = self._stream_in_q.get(block=True, timeout=timeout)
             self._stream_in_q.task_done()
-            print(f'have {message}')
             return message
         except Empty:
             return None
@@ -183,6 +175,36 @@ class P4RuntimeGRPC(object):
         self._client.SetForwardingPipelineConfig(request)
 
 
+    def read_table_entries(self, table_id=None):
+        request = p4runtime_pb2.ReadRequest()
+        request.device_id = self._device_id
+        entity = request.entities.add()
+        table_entry = entity.table_entry
+        if table_id is not None:
+            table_entry.table_id = table_id
+        else:
+            table_entry.table_id = 0
+
+        for response in self._client.Read(request):
+            yield response
+
+
+    def read_counters(self, counter_id=None, index=None):
+        request = p4runtime_pb2.ReadRequest()
+        request.device_id = self._device_id
+        entity = request.entities.add()
+        counter_entry = entity.counter_entry
+        if counter_id is not None:
+            counter_entry.counter_id = counter_id
+        else:
+            counter_entry.counter_id = 0
+        if index is not None:
+            counter_entry.index.index = index
+
+        for response in self._client.Read(request):
+            yield response
+
+
     def acknowledge_digest_list(self, digest_id, list_id):
         ''' If using queues for incoming, if our processing queue is full
         we might be able to wait before the queue is empty or occupied by
@@ -198,22 +220,22 @@ class P4RuntimeGRPC(object):
         return response.p4runtime_api_version
 
 
-    def activate_digest(self, 
+    def add_digest_entry(self, 
                 digest_name, 
-                max_timeout=1000000, 
-                max_list_size=2, 
-                ack_timeout=100000000000):
-        activation_request = self.__get_write_request()
+                max_timeout=seconds(0.001), 
+                max_list_size=5, 
+                ack_timeout=seconds(1)):
+        request = self.__get_write_request()
         digest_entry = P4InfoHelper.create_digest_entry(self._info, digest_name, max_timeout, 
                 max_list_size, ack_timeout)
 
-        update = activation_request.updates.add()
+        update = request.updates.add()
         update.type = p4runtime_pb2.Update.INSERT
         update.entity.digest_entry.CopyFrom(digest_entry)
 
         try:
             # WriteResponse exists but is empty
-            self._client.Write(activation_request)
+            self._client.Write(request)
         except grpc.RpcError as e:
             raise Exception(e.details())
 
@@ -221,25 +243,93 @@ class P4RuntimeGRPC(object):
     def write_table(self,
             table_name, 
             match_fields, 
-            action_name, 
-            action_params=None,):
+            action_name=None, 
+            action_params=None,
+            meter_config=None,
+            priority=None):
         runtime_request = self.__get_write_request()
-        runtime_table_entry = P4InfoHelper.create_table_entry(self._info,
+        table_entry = P4InfoHelper.create_table_entry(self._info,
                 table_name)
         runtime_matches = P4InfoHelper.create_match_fields(self._info,
                 table_name, match_fields)
-        runtime_action = P4InfoHelper.create_action(self._info, action_name,
-                action_params)
 
-        runtime_table_entry.match.extend(runtime_matches)
-        runtime_table_entry.action.action.CopyFrom(runtime_action)
+        table_entry.match.extend(runtime_matches)
+
+        if action_name != None:
+            runtime_action = P4InfoHelper.create_action(self._info, action_name,
+                    action_params)
+            table_entry.action.action.CopyFrom(runtime_action)
+
+        if priority != None:
+            table_entry.priority = priority
+            
+        # if meter_config != None:
+        #     meter_config = p4runtime_pb2.MeterConfig(
+        #         cir=meter_config['cir'],
+        #         cburst=meter_config['cburst'],
+        #         pir=meter_config['pir'],
+        #         pburst=meter_config['pburst'])
+        #     table_entry.meter_config.CopyFrom(meter_config)
+            
 
         update = runtime_request.updates.add()
         update.type = p4runtime_pb2.Update.INSERT
-        update.entity.table_entry.CopyFrom(runtime_table_entry)
+        update.entity.table_entry.CopyFrom(table_entry)
         
         self._client.Write(runtime_request)
 
+
+    def read_direct_meters(self, table_name=None):
+        table_id = P4InfoHelper.get_table_id(self._info, table_name)
+
+        entity = p4runtime_pb2.Entity()
+        table_entry = p4runtime_pb2.TableEntry(table_id=table_id)
+        entity.table_entry.CopyFrom(table_entry)
+
+        request = p4runtime_pb2.ReadRequest(device_id=self._device_id,
+            entities=[entity])
+
+        for response in self._client.Read(request):
+            print("-----\n", response, '\n------')
+
+
+        # request.device_id = self._device_id
+        # entity = request.entities.add()
+
+        # # Table id 0 (all tables)
+        # table_entry = P4InfoHelper.create_table_entry(self._info, table_name)
+        # entity.direct_meter_entry.table_entry.CopyFrom(table_entry)
+        # print(request.device_id)
+        # print(request)
+        # self._client.Write(request)
+
+
+    def write_direct_meter(self, table_name, cir, cburst, pir, pburst,
+            match_fields):
+        request = self.__get_write_request()
+        request.device_id = self._device_id
+
+        meter_config = p4runtime_pb2.MeterConfig(cir=cir,
+            cburst=cburst,
+            pir=pir,
+            pburst=pburst)
+
+        table_entry = P4InfoHelper.create_table_entry(self._info,
+                table_name)
+
+        matches = P4InfoHelper.create_match_fields(self._info,
+                table_name, match_fields)
+
+        table_entry.match.extend(matches)
+        table_entry.meter_config.CopyFrom(meter_config)
+
+
+        update = request.updates.add()
+        update.type = p4runtime_pb2.Update.MODIFY
+        update.entity.direct_meter_entry.table_entry.CopyFrom(table_entry)
+        update.entity.direct_meter_entry.config.CopyFrom(meter_config)
+
+        self._client.Write(request)
 
 
     def write_multicast(self, group_id, replicas, update_type=UpdateType.INSERT):
