@@ -21,7 +21,7 @@ from packettest.predicates import received_packet
 from packettest.predicates import saw_packet_equals_sent
 from packettest.test_context import TestContext
 
-from veth_config import config
+from config import config
 
 
 

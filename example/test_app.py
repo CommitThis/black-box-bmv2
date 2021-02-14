@@ -1,4 +1,4 @@
-from veth_config import config
+from config import config
 
 from packettest.packets import make_packet
 # from packettest.test_context import make_context
