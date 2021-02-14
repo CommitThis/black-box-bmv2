@@ -86,6 +86,10 @@ def configure_ip(iface, ip, namespace=None):
     command = f'ip addr add {ip} dev {iface}'
     __rnetlink_ignore_file_exists(__get_namespace_comand(f'{command}', namespace), True)
 
+def configure_ipv6(iface, ip, namespace=None):
+    command = f'ip -6 addr add {ip} dev {iface}'
+    __rnetlink_ignore_file_exists(__get_namespace_comand(f'{command}', namespace), True)
+
 
 def configure_mac(iface, mac, namespace=None):
     command = f'ip link set {iface} address {mac}'
@@ -134,18 +138,21 @@ def configure_interface(config, namespace=None):
     iface = config['name']
 
     # Default commands
-    # stop_mdns_ssdp(iface, config.get('stop_mdns_ssdp', True))
+    stop_mdns_ssdp(iface, config.get('stop_mdns_ssdp', True))
 
     # Need to work on sysctl settings for namespaced interfaces
     if namespace is None:
-        disable_ipv6(iface, config.get('disable_ipv6', True))
+    #     disable_ipv6(iface, config.get('disable_ipv6', True))
     
+        disable_ipv6(iface, config.get('disable_ipv6', False))
+
     multicast_enabled(iface, config.get('disable_multicast', True), namespace)
 
     # Optional Commands
     if 'mtu' in config.keys(): configure_mtu(iface, config['mtu'], namespace)
     if 'mac' in config.keys(): configure_mac(iface, config['mac'], namespace)
     if 'ip' in config.keys(): configure_ip(iface, config['ip'], namespace)
+    if 'ipv6' in config.keys(): configure_ipv6(iface, config['ipv6'], namespace)
     
     iface_up(iface, namespace)
 
