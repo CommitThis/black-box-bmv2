@@ -3,7 +3,7 @@ from p4.config.v1 import p4info_pb2 # Needed for runtime version of Info
 from p4.v1 import p4runtime_pb2
 
 from p4client.error import EntityNotFound
-
+from p4client.fields import Ignore
 
 class P4InfoHelper(object):
     ''' 
@@ -123,6 +123,10 @@ class P4InfoHelper(object):
         runtime_match = p4runtime_pb2.FieldMatch()
         runtime_match.field_id = info_match.id
 
+        # if isinstance(data, Ignore):
+        #     # need handle ternary lpm
+        #     return runtime_match
+
         if data.bitwidth != info_match.bitwidth:
             class_name = data.__class__.__name__
             raise BitwidthsDontMatch('Bitwidth for {} is {} but P4 expected {}.'.format(
@@ -131,12 +135,28 @@ class P4InfoHelper(object):
                 info.bitwitdh
             ))
 
-        if p4info_pb2.MatchField.EXACT == info_match.match_type:
-            runtime_match.exact.value = data.serialise()
+        else:
+            if p4info_pb2.MatchField.EXACT == info_match.match_type:
+                runtime_match.exact.value = data.serialise()
 
-        elif p4info_pb2.MatchField.LPM == info_match.match_type:
-            runtime_match.lpm.value = data.serialise()
-            runtime_match.prefix_len = data.prefix_len
+            elif p4info_pb2.MatchField.LPM == info_match.match_type:
+                runtime_match.lpm.value = data.serialise()
+                runtime_match.lpm.prefix_len = data.prefix_len
+
+            elif p4info_pb2.MatchField.TERNARY == info_match.match_type:
+                runtime_match.ternary.value = data.serialise()
+                runtime_match.ternary.mask = data.mask
+
+
+        # elif p4info_pb2.MatchField.TERNARY == info_match.match_type:
+        #     if int.from_bytes(data.mask, byteorder='little') != 0:
+        #         runtime_match.ternary.value = data.serialise()
+        #         runtime_match.ternary.mask = data.mask
+        #     else:
+        #         # pass
+        #         # Omit entry
+        #         field_match = p4runtime_pb2.FieldMatch.Ternary()
+        #         runtime_match.ternary.CopyFrom(field_match)
 
         return runtime_match
     
@@ -217,8 +237,8 @@ class P4InfoHelper(object):
 
 
     @staticmethod
-    def create_table_entry(p4info, table_name):
-        table_id = P4InfoHelper.get_table_id(p4info, table_name)
+    def create_table_entry(p4info, table_name=None):
+        table_id = P4InfoHelper.get_table_id(p4info, table_name) if table_name is not None else 0
         runtime_table_entry = p4runtime_pb2.TableEntry()
         runtime_table_entry.table_id = table_id
         return runtime_table_entry
