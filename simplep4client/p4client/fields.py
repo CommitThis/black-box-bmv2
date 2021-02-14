@@ -1,6 +1,7 @@
 import json
 import math
 from enum import Enum
+import ipaddress
 
 
 class JSONSerialisable(object):
@@ -29,6 +30,12 @@ class DataType(Enum):
     INTEGER = 0
     CUSTOM = 1
 
+class Ignore:
+    pass
+
+
+class ValueOutOfRange(Exception):
+    pass
 
 def encodeNum(number, bitwidth):
     if number >= 2 ** bitwidth:
@@ -63,7 +70,9 @@ class P4Serialisable(JSONSerialisable):
 
     @classmethod
     def deserialise(cls, data):
-        return cls(bytes_to_int(data))
+        out = cls(bytes_to_int(data))
+        # print(out)
+        return out
 
     def __repr__(self):
         clazz = self.__class__.__name__
@@ -85,17 +94,49 @@ class P4Serialisable(JSONSerialisable):
 class IPv4Address(P4Serialisable):
     bitwidth = 32
 
-    def __init__(self, value):
+    def __init__(self,
+            value,
+            mask = encodeNum(2**bitwidth-1, bitwidth),
+            prefix_len=0):
         super(IPv4Address, self).__init__(value=value)
+        self.mask =  encodeNum(int(ipaddress.ip_address(mask)), 
+                IPv4Address.bitwidth)
+        self.prefix_len = prefix_len
+        # print(self)
 
     def serialise(self):
-        return int(ipaddress.ip_address(self.value))
+        return encodeNum(int(ipaddress.ip_address(self.value)), 
+                IPv4Address.bitwidth)
 
     @classmethod
     def deserialise(cls, data):
         data = ipaddress.ip_address(data).__str__()
         return cls(data)
  
+
+class IPv6Address(P4Serialisable):
+    bitwidth = 128
+
+    def __init__(self,
+            value,
+            mask = encodeNum(2**bitwidth-1, bitwidth),
+            prefix_len=0):
+        super(IPv6Address, self).__init__(value=value)
+        self.mask =  encodeNum(int(ipaddress.ip_address(mask)), 
+                IPv6Address.bitwidth)
+        self.prefix_len = prefix_len
+        # print(self)
+
+    def serialise(self):
+        return encodeNum(int(ipaddress.ip_address(self.value)), 
+                IPv6Address.bitwidth)
+
+    @classmethod
+    def deserialise(cls, data):
+        data = ipaddress.ip_address(data).__str__()
+        return cls(data)
+
+
 
 class MacAddress(P4Serialisable):
     bitwidth = 48
@@ -105,8 +146,10 @@ class MacAddress(P4Serialisable):
 
     @classmethod
     def deserialise(cls, data):
-        result = MacAddress(':'.join(['{:02x}'.format(x) for x in data]))
-        return result 
+        return MacAddress(':'.join(['{:02x}'.format(x) for x in data]))
+        # result = MacAddress(':'.join(['{:02x}'.format(x) for x in data]))
+        # print(result)
+        # return result 
 
 
 class MulticastGroup(P4Serialisable):
