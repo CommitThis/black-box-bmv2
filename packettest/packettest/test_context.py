@@ -8,6 +8,7 @@ from scapy.all import AsyncSniffer
 
 import pytest
 
+
 class TestContext:
     """Asynchronous Packet Test Context
 
@@ -30,6 +31,7 @@ class TestContext:
             count: int=0, # 
             session=None, 
             filter: str=None,
+            timeout=0,
             lfilter: callable=None):
         """Generic packet monitor.
         
@@ -51,8 +53,6 @@ class TestContext:
         """
         ready_event = Event()
 
-        if isinstance(iface, veth.Interface):
-            iface = iface.name
 
         def notify_started():
             ''' Callback used by sniffer to event when it's actually started '''
@@ -66,6 +66,7 @@ class TestContext:
             monitor=True,
             filter=filter,
             lfilter=lfilter,
+            timeout=timeout,
             started_callback=notify_started)
 
         sniffer.start()
@@ -215,7 +216,7 @@ class TestContext:
 
         ''' Wait until sniffer has actually started '''
         if not ready_event.wait(timeout=5):
-            raise Exception('Sniffer did not start!')
+            raise Exception(f'Sniffer did not start on interface {iface}!')
 
 
         def join():
@@ -235,7 +236,7 @@ class TestContext:
         with self._monitor_lock:
             self._monitors.append(sniffer)
 
-        return SniffFuture(sniffer, self._executor.submit(join))
+        return SniffFuture(predicate, self._executor.submit(join))
 
 
 

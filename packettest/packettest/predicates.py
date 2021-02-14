@@ -12,16 +12,17 @@ class Write:
         self._pred = predicate
 
     def on_packet(self, pkt):
+        self._file.write(pkt)
         self._pred.on_packet(pkt)
 
     def stop_condition(self, pkt) -> bool:
-        self._file.write(pkt)
         return self._pred.stop_condition(pkt)
 
     def on_finish(self, timed_out):
-        self._pred.on_finish(timed_out)
+        return self._pred.on_finish(timed_out)
 
-
+    def _detail(self):
+        return self._pred._detail()
 
 
 class Predicate:
@@ -31,9 +32,11 @@ class Predicate:
     def stop_condition(self, pkt) -> bool:
         pass
 
-    def on_finish(self, timed_out):
+    def on_finish(self, timed_out) -> bool:
         pass
 
+    def _detail(self):
+        return self.__dict__
 
 
 '''
@@ -137,7 +140,7 @@ class did_not_see_vlan(Predicate):
 
 
 
-class saw_packet_equals_sent(Predicate):
+class saw_packet_equaling(Predicate):
     def __init__(self, packet):
         # Reload packet to generate CRC
         self._packet = packet.__class__(bytes(packet))
@@ -152,7 +155,7 @@ class saw_packet_equals_sent(Predicate):
 
 
 
-class did_not_see_packet_equals_sent(Predicate):
+class did_not_see_packet_equaling(Predicate):
     def __init__(self, packet):
         self._packet = packet.__class__(bytes(packet))
         self._saw_pkt = False
@@ -179,6 +182,20 @@ class packet_count_was(Predicate):
 
 
 
+class packet_count_was_less_than(Predicate):
+    def __init__(self, count):
+        self._expected_count = count
+        self._received_count = 0
+
+    def stop_condition(self, packet):
+        self._received_count += 1
+        return self._received_count < self._expected_count
+
+    def on_finish(self, timed_out):
+        return self._received_count < self._expected_count
+
+
+
 class packet_count(Predicate):
     def __init__(self):
         self._received_count = 0
@@ -190,26 +207,28 @@ class packet_count(Predicate):
         return self._received_count
 
 
-class only_saw(Predicate):
+class received_count_of(Predicate):
     def __init__(self, packet):
         self._packet = packet.__class__(bytes(packet))
-        self._seen_count = None
-        self._expected = None
-        self._method = None
+        self.packets_seen = 0
+        self.expected = None
 
     def on_packet(self, packet):
         if self._packet == packet:
-            self._seen_count += 1
+            self.packets_seen += 1
     
-    def on_finish(self):
-        return self._seen_count == self._expected
+    ''' Stop condition is run after on packet, it would seem. Otherwise we
+        would have to do our calculations entirely here. '''
+    def stop_condition(self, pkt):
+        if self.packets_seen > self.expected:
+            return True
+        return False
 
-    def once(self):
-        self._count = 1
-        return self
+    def on_finish(self, timed_out):
+        return self.packets_seen == self.expected
 
-    def count(self, n):
-        self._count = n
+    def was(self, n):
+        self.expected = n
         return self
 
 
