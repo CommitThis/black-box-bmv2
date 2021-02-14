@@ -12,7 +12,7 @@ python3 -m venv .venv --copies
 # RAW for creating sockets (scapy)
 # DAC for file operations (linking/unlinking)
 sudo setcap CAP_NET_RAW,CAP_DAC_OVERRIDE+eip .venv/bin/python
-sudo setcap CAP_NET_RAW,CAP_DAC_OVERRIDE+eip .venv/bin/pytest
+sudo setcap CAP_NET_RAW,CAP_DAC_OVERRIDE+eip .venv/bin/python3
 
 source .venv/bin/activate
 pip install --upgrade setuptools
